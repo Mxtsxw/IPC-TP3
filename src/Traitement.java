@@ -26,7 +26,12 @@ public class Traitement implements Runnable {
 
     private static final String SERVER_NAME = "Serveur HTTP";
     private static final String DEFAULT_CONTENT_TYPE = "text/html; charset=utf-8";
-    private static final String SITE_DIRECTORY = "./src/siteweb";
+
+    private String SITE_DIRECTORY;
+    private static final String HOSTNAME_1 = "siteweb1";
+    private static final String HOSTNAME_2 = "siteweb2";
+    private static final String SITE_DIRECTORY_1 = "./src/siteweb";
+    private static final String SITE_DIRECTORY_2 = "./src/siteweb2";
 
     public Traitement(ServerSocket serverSocket, Socket clientSocket){
         this.serverSocket = serverSocket;
@@ -71,7 +76,8 @@ public class Traitement implements Runnable {
             // Fermer la connexion avec le client
             this.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            this.generateErrorResponse(500);
+            e.printStackTrace();
         }
     }
 
@@ -88,6 +94,18 @@ public class Traitement implements Runnable {
     private void handle() throws IOException {
         String request = getRequest();
         System.out.println(request);
+
+        // Gère l'hôte demandé dans la requête
+        String host = getHostFromRequest(request);
+        if (host != null && host.equals("localhost:8080") | host.equals(HOSTNAME_1)){
+            this.SITE_DIRECTORY = SITE_DIRECTORY_1;
+        } else if (host != null && host.equals(HOSTNAME_2)){
+            this.SITE_DIRECTORY = SITE_DIRECTORY_2;
+        } else {
+            out.write(generateErrorResponse(400).getBytes());
+            return;
+        }
+
         int code = getRequestCode(request);
         if (code != 200){
             out.write(generateErrorResponse(code).getBytes());
@@ -206,5 +224,21 @@ public class Traitement implements Runnable {
         // Construire la réponse
         out.write(header.getBytes());
         out.write(content);
+    }
+
+    /**
+     * Fonction qui permet d'extraire l'attribut Host de l'en-tête de la requête
+     */
+    public String getHostFromRequest(String request) {
+        // Expression régulière pour extraire l'Host de la requête
+        String regex = "Host:\\s*(\\S+)";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(request);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        } else {
+            return null;
+        }
     }
 }
